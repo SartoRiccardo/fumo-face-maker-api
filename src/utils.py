@@ -86,3 +86,11 @@ def coords_to_cmd(coords: tuple[int, int], op_code: int = 0b10) -> bytes:
         op_x = ops_x[i] if i < len(ops_x) else [0] * 5
         op_y = ops_y[i] if i < len(ops_y) else [0] * 5
         return operations_to_cmd(op_x, op_y, op_code)
+
+
+def get_needle_pos(commands: list["src.dst.DSTCommand"]) -> tuple[int, int]:
+    pos = [0, 0]
+    for cmd in commands:
+        pos[0] += cmd.x
+        pos[1] += cmd.y
+    return tuple(pos)
