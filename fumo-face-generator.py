@@ -1,6 +1,7 @@
 import os
 from config import Hosting
 from aiohttp import web
+import aiohttp_cors
 import generator
 
 # https://docs.aiohttp.org/en/v3.8.5/web_advanced.html#complex-applications
@@ -67,10 +68,12 @@ def main():
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
     app = web.Application()
-    app.add_routes([
-        web.get("/face/list", list_parts),
-        web.get("/face", make_face),
-    ])
+    cors = aiohttp_cors.setup(app)
+
+    res_face_list = cors.add(app.router.add_resource("/face/list"))
+    cors.add(res_face_list.add_route("GET", list_parts))
+    res_face = cors.add(app.router.add_resource("/face"))
+    cors.add(res_face.add_route("GET", make_face))
 
     print(f"[START] Listening on port {Hosting.port}...")
     web.run_app(app, host=Hosting.host, port=Hosting.port)
