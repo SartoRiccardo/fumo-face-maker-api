@@ -49,13 +49,16 @@ async def make_face(request):
         filename += f"-{fname_attrs}"
     filename += ".DST"
 
-    face = generator.combine_parts(
-        eye_no,
-        lash_no,
-        brow_no,
-        mouth_no,
-        heterochromia=heterochromia
-    )  # TODO dont block
+    try:
+        face = generator.combine_parts(
+            eye_no,
+            lash_no,
+            brow_no,
+            mouth_no,
+            heterochromia=heterochromia
+        )  # TODO dont block
+    except FileNotFoundError as fnferr:
+        return web.Response(status=400, text=f"Part not found: {fnferr.filename}")
 
     return web.Response(body=face, headers={"Content-Disposition": f"inline; filename=\"{filename}\""})
 
