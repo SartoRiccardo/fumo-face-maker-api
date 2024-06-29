@@ -68,7 +68,9 @@ def main():
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
     app = web.Application()
-    cors = aiohttp_cors.setup(app)
+    cors = aiohttp_cors.setup(app, defaults={
+        "*": aiohttp_cors.ResourceOptions(),
+    })
 
     res_face_list = cors.add(app.router.add_resource("/face/list"))
     cors.add(res_face_list.add_route("GET", list_parts))
