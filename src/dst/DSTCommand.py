@@ -30,6 +30,12 @@ class DSTCommand:
             cmd_str = "END"
         return f"[{cmd_str}] {self.x},{self.y}"
 
+    def __repr__(self) -> str:
+        cmd_str = DSTCommand.commands[self.op]
+        if self.is_end:
+            cmd_str = "END"
+        return f"<DSTCommand {cmd_str} {self.x},{self.y}>"
+
     def to_bytes(self) -> bytes:
         cmd = coords_to_cmd((self.x, self.y), self.op)
         if self.is_end:

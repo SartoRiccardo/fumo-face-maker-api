@@ -7,23 +7,6 @@ EYEBROW_CENTER = (0, 249)
 MOUTH_CENTER = (0, -251)
 
 
-def f1(fname):
-    header, commands = dst_load(fname)
-    insert_stop_at = -1
-    for i, cmd in enumerate(commands):
-        if cmd.op == DSTOpCode.JUMP and insert_stop_at == -1:
-            continue
-        insert_stop_at = i
-        if cmd.op == DSTOpCode.JUMP:
-            break
-        
-    print(header.stitches, len(commands))
-    
-    header.color_changes += 1
-    header.stitches += 1
-    commands.insert(insert_stop_at, DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE))
-
-
 def remove_last_jumps(embroidery: list[DSTCommand]) -> None:
     for i in range(len(embroidery)-1, -1, -1):
         if embroidery[i].op == DSTOpCode.JUMP:
@@ -35,7 +18,7 @@ def remove_last_jumps(embroidery: list[DSTCommand]) -> None:
 def jump_to(pos_from: tuple[int, int], pos_to: tuple[int, int]) -> list[DSTCommand]:
     movement = [pos_to[0]-pos_from[0], pos_to[1]-pos_from[1]]
     commands = []
-    while sum(movement) != 0:
+    while any(movement):
         move_x = min(abs(movement[0]), 121) * sign(movement[0])
         move_y = min(abs(movement[1]), 121) * sign(movement[1])
         movement[0] -= move_x
@@ -50,7 +33,7 @@ def combine_parts(
         brow_no: int,
         mouth_no: int,
         heterochromia: bool = False,
-):
+) -> bytes:
     eyeh, eyee = dst_load(f"face-parts/eyes/eye-{eye_no}-lash{lash_no}.DST")
     browh, browe = dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
     mouthh, mouthe = dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
@@ -111,14 +94,11 @@ def combine_parts(
         "******"
     )
 
-    for cmd in embroidery_final:
-        print(cmd)
-
     content = header.to_bytes() + b"".join([cmd.to_bytes() for cmd in embroidery_final])
-    with open("generated.DST", "wb") as fout:
-        fout.write(content)
+    return content
 
 
 if __name__ == '__main__':
-    #main("face-parts/eyes/eye-1-lash0.DST")
-    combine_parts(1, 1, 1, 1)
+    # combine_parts(1, 2, 1, 1)
+    print(jump_to((111, 140), EYEBROW_CENTER))
+    print(jump_to((109, 140), EYEBROW_CENTER))
