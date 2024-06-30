@@ -32,13 +32,21 @@ def combine_parts(
         lash_no: int,
         brow_no: int,
         mouth_no: int,
+        blush_no: int = 0,
+        accessories: list[int] or None = None,
         heterochromia: bool = False,
+        diff_clr_outline: bool = False,
+        gradient: bool = False,
 ) -> bytes:
+    if accessories is None:
+        accessories = []
+
     eyeh, eyee = dst_load(f"face-parts/eyes/eye-{eye_no}-lash{lash_no}.DST")
     browh, browe = dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
     mouthh, mouthe = dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
 
     embroidery_final = []
+    color_change_cmd = DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE)
 
     # The very bottom of the eye must start at y=-120.
     eye_offset = -eyeh.extend_y[1] - 120  # Should never be >121
@@ -47,14 +55,23 @@ def combine_parts(
     embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
     embroidery_final.append(DSTCommand(0, eye_offset, DSTOpCode.JUMP))
 
-    inserted_color = -1
+    eye_block_count = -1
     for i, cmd in enumerate(eyee):
-        if heterochromia and inserted_color != 1:
-            if cmd.op != DSTOpCode.JUMP:
-                inserted_color = 0
-            elif inserted_color == 0:
-                inserted_color = 1
-                embroidery_final.append(DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE))
+        if cmd.op != DSTOpCode.JUMP and i > 0 and eyee[i-1].op == DSTOpCode.JUMP:
+            eye_block_count += 1
+    right_eye_outl_start = 6 if eye_block_count == 10 else \
+                           5 if eye_block_count == 9 else 5
+    right_eye_outl_end = 8 if eye_block_count == 10 else \
+                         7 if eye_block_count == 9 else 6
+
+    current_block = -1
+    for i, cmd in enumerate(eyee):
+        if cmd.op != DSTOpCode.JUMP and i > 0 and eyee[i-1].op == DSTOpCode.JUMP:
+            current_block += 1
+            if current_block == 1 and heterochromia or \
+                    current_block == right_eye_outl_end and diff_clr_outline or \
+                    current_block == right_eye_outl_start and diff_clr_outline and heterochromia:
+                embroidery_final.append(color_change_cmd)
 
         if not cmd.is_end:
             embroidery_final.append(cmd)
@@ -67,7 +84,7 @@ def combine_parts(
 
     # Mouth
     if mouth_no in [6, 11, 4]:  # Special mouths that don't start with black thread
-        embroidery_final.append(DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE))
+        embroidery_final.append(color_change_cmd)
     needle_pos = get_needle_pos(embroidery_final)
     embroidery_final += jump_to(needle_pos, MOUTH_CENTER) + mouthe
 
@@ -101,6 +118,25 @@ def combine_parts(
 
 
 if __name__ == '__main__':
-    # combine_parts(1, 2, 1, 1)
-    print(jump_to((111, 140), EYEBROW_CENTER))
-    print(jump_to((109, 140), EYEBROW_CENTER))
+    with open("./test-generations/1out.DST", "wb") as fout:
+        fout.write(combine_parts(1, 2, 1, 1, diff_clr_outline=True))
+    with open("./test-generations/1het.DST", "wb") as fout:
+        fout.write(combine_parts(1, 2, 1, 1, heterochromia=True))
+    with open("./test-generations/1outhet.DST", "wb") as fout:
+        fout.write(combine_parts(1, 2, 1, 1, diff_clr_outline=True, heterochromia=True))
+
+    with open("./test-generations/2out.DST", "wb") as fout:
+        fout.write(combine_parts(2, 2, 1, 1, diff_clr_outline=True))
+    with open("./test-generations/2het.DST", "wb") as fout:
+        fout.write(combine_parts(2, 2, 1, 1, heterochromia=True))
+    with open("./test-generations/2outhet.DST", "wb") as fout:
+        fout.write(combine_parts(2, 2, 1, 1, diff_clr_outline=True, heterochromia=True))
+
+    with open("./test-generations/3out.DST", "wb") as fout:
+        fout.write(combine_parts(2, 4, 1, 1, diff_clr_outline=True))
+    with open("./test-generations/3het.DST", "wb") as fout:
+        fout.write(combine_parts(2, 4, 1, 1, heterochromia=True))
+    with open("./test-generations/3outhet.DST", "wb") as fout:
+        fout.write(combine_parts(2, 4, 1, 1, diff_clr_outline=True, heterochromia=True))
+    #print(jump_to((111, 140), EYEBROW_CENTER))
+    #print(jump_to((109, 140), EYEBROW_CENTER))
