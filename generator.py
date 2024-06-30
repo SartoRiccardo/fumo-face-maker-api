@@ -66,6 +66,8 @@ def combine_parts(
     remove_last_jumps(embroidery_final)
 
     # Mouth
+    if mouth_no in [6, 11, 4]:  # Special mouths that don't start with black thread
+        embroidery_final.append(DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE))
     needle_pos = get_needle_pos(embroidery_final)
     embroidery_final += jump_to(needle_pos, MOUTH_CENTER) + mouthe
 
