@@ -36,7 +36,8 @@ async def make_face(request):
         lash_no = int(request.query["eyelashes"])
         brow_no = int(request.query["eyebrows"])
         mouth_no = int(request.query["mouth"])
-        heterochromia = "heterochromia" in request.query and request.query["heterochromia"] == "true"
+        heterochromia = "heterochromia" in request.query and request.query["heterochromia"] != "false"
+        diff_clr_outline = "diff_clr_outline" in request.query and request.query["diff_clr_outline"] != "false"
     except KeyError as keyerr:
         return web.Response(status=400, text=f"Missing {keyerr}")
     except ValueError as verr:
@@ -56,7 +57,8 @@ async def make_face(request):
             lash_no,
             brow_no,
             mouth_no,
-            heterochromia=heterochromia
+            heterochromia=heterochromia,
+            diff_clr_outline=diff_clr_outline,
         )  # TODO dont block
     except FileNotFoundError as fnferr:
         return web.Response(status=400, text=f"Part not found: {fnferr.filename}")
