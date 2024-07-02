@@ -3,6 +3,7 @@ from config import Hosting
 from aiohttp import web
 import aiohttp_cors
 import generator
+import ssl
 
 # https://docs.aiohttp.org/en/v3.8.5/web_advanced.html#complex-applications
 # async def init_client_session(_app):
@@ -80,7 +81,9 @@ def main():
     cors.add(res_face.add_route("GET", make_face))
 
     print(f"[START] Listening on port {Hosting.port}...")
-    web.run_app(app, host=Hosting.host, port=Hosting.port)
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain('domain_srv.crt', 'domain_srv.key')
+    web.run_app(app, host=Hosting.host, port=Hosting.port, ssl_context=ssl_context)
 
 
 if __name__ == '__main__':
