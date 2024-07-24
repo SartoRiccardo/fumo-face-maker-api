@@ -37,6 +37,8 @@ async def make_face(request):
         lash_no = int(request.query["eyelashes"])
         brow_no = int(request.query["eyebrows"])
         mouth_no = int(request.query["mouth"])
+        eyecols = request.query["eyecols"].split(",")[:2] if "eyecols" in request.query else None
+        outcols = request.query["outcols"].split(",")[:2] if "outcols" in request.query else None
         heterochromia = "heterochromia" in request.query and request.query["heterochromia"] != "false"
         diff_clr_outline = "diff_clr_outline" in request.query and request.query["diff_clr_outline"] != "false"
     except KeyError as keyerr:
@@ -50,7 +52,7 @@ async def make_face(request):
     ])
     if len(fname_attrs) > 0:
         filename += f"-{fname_attrs}"
-    filename += ".DST"
+    filename += ".PES"
 
     try:
         face = generator.combine_parts(
@@ -60,6 +62,8 @@ async def make_face(request):
             mouth_no,
             heterochromia=heterochromia,
             diff_clr_outline=diff_clr_outline,
+            eyecols=eyecols,
+            outcols=outcols,
         )  # TODO dont block
     except FileNotFoundError as fnferr:
         return web.Response(status=400, text=f"Part not found: {fnferr.filename}")

@@ -1,5 +1,10 @@
+import os
+import random
+import string
 from src.dst import dst_load, DSTCommand, DSTOpCode, DSTHeader
 from src.utils import get_needle_pos, sign
+import pyembroidery
+from pyembroidery.EmbThreadPec import get_thread_set
 # 1 unit = 0.1mm
 
 
@@ -37,9 +42,22 @@ def combine_parts(
         heterochromia: bool = False,
         diff_clr_outline: bool = False,
         gradient: bool = False,
+        eyecols: list[str] or None = None,
+        outcols: list[str] or None = None,
 ) -> bytes:
     if accessories is None:
         accessories = []
+    if eyecols is None or len(eyecols) == 0:
+        eyecols = ["red"]
+        if heterochromia:
+            eyecols.append("#0a55a3")
+    if outcols is None or len(outcols) == 0:
+        if diff_clr_outline:
+            outcols = ["#2a1301"]
+            if heterochromia:
+                outcols.append("#0e1f7c")
+        else:
+            outcols = ["black"]
 
     eyeh, eyee = dst_load(f"face-parts/eyes/eye-{eye_no}-lash{lash_no}.DST")
     browh, browe = dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
@@ -114,29 +132,43 @@ def combine_parts(
     )
 
     content = header.to_bytes() + b"".join([cmd.to_bytes() for cmd in embroidery_final])
+
+    # Convert to PES and add colors
+    colors = [eyecols[0]]
+    if heterochromia and len(eyecols) > 1:
+        colors.append(eyecols[1])
+    colors.append("white")
+    colors.append(outcols[0])
+    if diff_clr_outline:
+        if heterochromia and len(outcols) > 1:
+            colors.append(outcols[1])
+        colors.append("black")
+    # Special mouth color switches
+    if mouth_no == 4:
+        colors += ["white", "black"]
+    elif mouth_no == 5:
+        colors += ["red", "black"]
+    elif mouth_no == 11:
+        colors += ["white", "#fcbbc5", "black"]
+
+    random_name = "".join(random.choices(string.ascii_letters, k=20))
+    with open(random_name+".dst", "wb") as fout:
+        fout.write(content)
+    stitches = pyembroidery.read_dst(random_name+".dst")
+    stitches.fix_color_count()
+    for i in range(min(len(colors), len(stitches.threadlist))):
+        stitches.threadlist[i].set(colors[i])
+        stitches.threadlist[i].description = colors[i].capitalize()
+    pyembroidery.write_pes(stitches, random_name+".pes")
+
+    with open(random_name+".pes", "rb") as fin:
+        content = fin.read()
+
+    os.remove(random_name+".dst")
+    os.remove(random_name+".pes")
+
     return content
 
 
 if __name__ == '__main__':
-    with open("./test-generations/1out.DST", "wb") as fout:
-        fout.write(combine_parts(1, 2, 1, 1, diff_clr_outline=True))
-    with open("./test-generations/1het.DST", "wb") as fout:
-        fout.write(combine_parts(1, 2, 1, 1, heterochromia=True))
-    with open("./test-generations/1outhet.DST", "wb") as fout:
-        fout.write(combine_parts(1, 2, 1, 1, diff_clr_outline=True, heterochromia=True))
-
-    with open("./test-generations/2out.DST", "wb") as fout:
-        fout.write(combine_parts(2, 2, 1, 1, diff_clr_outline=True))
-    with open("./test-generations/2het.DST", "wb") as fout:
-        fout.write(combine_parts(2, 2, 1, 1, heterochromia=True))
-    with open("./test-generations/2outhet.DST", "wb") as fout:
-        fout.write(combine_parts(2, 2, 1, 1, diff_clr_outline=True, heterochromia=True))
-
-    with open("./test-generations/3out.DST", "wb") as fout:
-        fout.write(combine_parts(2, 4, 1, 1, diff_clr_outline=True))
-    with open("./test-generations/3het.DST", "wb") as fout:
-        fout.write(combine_parts(2, 4, 1, 1, heterochromia=True))
-    with open("./test-generations/3outhet.DST", "wb") as fout:
-        fout.write(combine_parts(2, 4, 1, 1, diff_clr_outline=True, heterochromia=True))
-    #print(jump_to((111, 140), EYEBROW_CENTER))
-    #print(jump_to((109, 140), EYEBROW_CENTER))
+    combine_parts(1, 2, 1, 11, diff_clr_outline=True, heterochromia=True)
