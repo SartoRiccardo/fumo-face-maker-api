@@ -5,6 +5,7 @@ from src.dst import dst_load, DSTCommand, DSTOpCode, DSTHeader
 from src.utils import get_needle_pos, sign
 import pyembroidery
 from pyembroidery.EmbThreadPec import get_thread_set
+from typing import Literal
 # 1 unit = 0.1mm
 
 
@@ -44,6 +45,7 @@ def combine_parts(
         gradient: bool = False,
         eyecols: list[str] or None = None,
         outcols: list[str] or None = None,
+        file_format: Literal["DST", "PES"] = "DST"
 ) -> bytes:
     if accessories is None:
         accessories = []
@@ -133,39 +135,40 @@ def combine_parts(
 
     content = header.to_bytes() + b"".join([cmd.to_bytes() for cmd in embroidery_final])
 
-    # Convert to PES and add colors
-    colors = [eyecols[0]]
-    if heterochromia and len(eyecols) > 1:
-        colors.append(eyecols[1])
-    colors.append("white")
-    colors.append(outcols[0])
-    if diff_clr_outline:
-        if heterochromia and len(outcols) > 1:
-            colors.append(outcols[1])
-        colors.append("black")
-    # Special mouth color switches
-    if mouth_no == 4:
-        colors += ["white", "black"]
-    elif mouth_no == 5:
-        colors += ["red", "black"]
-    elif mouth_no == 11:
-        colors += ["white", "#fcbbc5", "black"]
+    if file_format == "PES":
+        colors = [eyecols[0]]
+        if heterochromia and len(eyecols) > 1:
+            colors.append(eyecols[1])
+        colors.append("white")
+        colors.append(outcols[0])
+        if diff_clr_outline:
+            if heterochromia and len(outcols) > 1:
+                colors.append(outcols[1])
+            colors.append("black")
+        # Special mouth color switches
+        if mouth_no == 4:
+            colors += ["white", "black"]
+        elif mouth_no == 5:
+            colors += ["red", "black"]
+        elif mouth_no == 11:
+            colors += ["white", "#fcbbc5", "black"]
 
-    random_name = "".join(random.choices(string.ascii_letters, k=20))
-    with open(random_name+".dst", "wb") as fout:
-        fout.write(content)
-    stitches = pyembroidery.read_dst(random_name+".dst")
-    stitches.fix_color_count()
-    for i in range(min(len(colors), len(stitches.threadlist))):
-        stitches.threadlist[i].set(colors[i])
-        stitches.threadlist[i].description = colors[i].capitalize()
-    pyembroidery.write_pes(stitches, random_name+".pes")
+        random_name = "".join(random.choices(string.ascii_letters, k=20))
+    
+        with open(random_name+".dst", "wb") as fout:
+            fout.write(content)
+        stitches = pyembroidery.read_dst(random_name+".dst")
+        stitches.fix_color_count()
+        for i in range(min(len(colors), len(stitches.threadlist))):
+            stitches.threadlist[i].set(colors[i])
+            stitches.threadlist[i].description = colors[i].capitalize()
+        pyembroidery.write_pes(stitches, random_name+".pes")
 
-    with open(random_name+".pes", "rb") as fin:
-        content = fin.read()
+        with open(random_name+".pes", "rb") as fin:
+            content = fin.read()
 
-    os.remove(random_name+".dst")
-    os.remove(random_name+".pes")
+        os.remove(random_name+".dst")
+        os.remove(random_name+".pes")
 
     return content
 

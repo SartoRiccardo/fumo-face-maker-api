@@ -41,6 +41,7 @@ async def make_face(request):
         outcols = request.query["outcols"].split(",")[:2] if "outcols" in request.query else None
         heterochromia = "heterochromia" in request.query and request.query["heterochromia"] != "false"
         diff_clr_outline = "diff_clr_outline" in request.query and request.query["diff_clr_outline"] != "false"
+        file_format = request.query["format"].upper() if "format" in request.query else "DST"
     except KeyError as keyerr:
         return web.Response(status=400, text=f"Missing {keyerr}")
     except ValueError as verr:
@@ -64,6 +65,7 @@ async def make_face(request):
             diff_clr_outline=diff_clr_outline,
             eyecols=eyecols,
             outcols=outcols,
+            file_format=file_format,
         )  # TODO dont block
     except FileNotFoundError as fnferr:
         return web.Response(status=400, text=f"Part not found: {fnferr.filename}")
