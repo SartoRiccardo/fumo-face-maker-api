@@ -1,0 +1,9 @@
+
+
+class PECOpCode:
+    STITCH_SHORT = 0b0000
+    STITCH_LONG = 0b1000
+    JUMP = 0b1001
+    TRIM = 0b1010
+    END = 0xFF
+    COLOR_CHANGE = 0xFEB0
