@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
+import json
 import os
 import random
 import string
-from src.dst import dst_load, DSTCommand, DSTOpCode, DSTHeader
+from src.dst import dst_load, dst_generate_header, DSTCommand, DSTOpCode
+from src.pes import pes_generate_header
 from src.utils import get_needle_pos, sign
 import pyembroidery
-from pyembroidery.EmbThreadPec import get_thread_set
 from typing import Literal
 # 1 unit = 0.1mm
 
@@ -39,12 +41,13 @@ def combine_parts(
         brow_no: int,
         mouth_no: int,
         blush_no: int = 0,
-        accessories: list[int] or None = None,
+        pupil_no: int = 1,
+        accessories: list[int] | None = None,
         heterochromia: bool = False,
         diff_clr_outline: bool = False,
         gradient: bool = False,
-        eyecols: list[str] or None = None,
-        outcols: list[str] or None = None,
+        eyecols: list[str] | None = None,
+        outcols: list[str] | None = None,
         file_format: Literal["DST", "PES"] = "DST"
 ) -> bytes:
     if accessories is None:
@@ -61,40 +64,44 @@ def combine_parts(
         else:
             outcols = ["black"]
 
-    eyeh, eyee = dst_load(f"face-parts/eyes/eye-{eye_no}-lash{lash_no}.DST")
     browh, browe = dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
     mouthh, mouthe = dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
 
     embroidery_final = []
     color_change_cmd = DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE)
 
-    # The very bottom of the eye must start at y=-120.
-    eye_offset = -eyeh.extend_y[1] - 120  # Should never be >121
-    # Don't know why there's usually 2 empty JUMPs but I'll put them out of fear.
+    # Don't know why there's usually 2 empty JUMPs, but I'll put them out of fear.
     embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
     embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
-    embroidery_final.append(DSTCommand(0, eye_offset, DSTOpCode.JUMP))
 
-    eye_block_count = -1
-    for i, cmd in enumerate(eyee):
-        if cmd.op != DSTOpCode.JUMP and i > 0 and eyee[i-1].op == DSTOpCode.JUMP:
-            eye_block_count += 1
-    right_eye_outl_start = 6 if eye_block_count == 10 else \
-                           5 if eye_block_count == 9 else 5
-    right_eye_outl_end = 8 if eye_block_count == 10 else \
-                         7 if eye_block_count == 9 else 6
+    # Eyes
+    with open(f"face-parts/eyes/eye-{eye_no}/positions.json") as fin:
+        pos_info = json.load(fin)
 
-    current_block = -1
-    for i, cmd in enumerate(eyee):
-        if cmd.op != DSTOpCode.JUMP and i > 0 and eyee[i-1].op == DSTOpCode.JUMP:
-            current_block += 1
-            if current_block == 1 and heterochromia or \
-                    current_block == right_eye_outl_end and diff_clr_outline or \
-                    current_block == right_eye_outl_start and diff_clr_outline and heterochromia:
-                embroidery_final.append(color_change_cmd)
+    eye_data = [
+        (f"face-parts/eyes/eye-{eye_no}/pupils/fill-{pupil_no}-l.DST", pos_info["fill-l"][pupil_no-1], heterochromia),
+        (f"face-parts/eyes/eye-{eye_no}/pupils/fill-{pupil_no}-r.DST", pos_info["fill-r"][pupil_no-1], True),
+        (f"face-parts/eyes/eye-{eye_no}/shine-l.DST", pos_info["shine-l"], False),
+        (f"face-parts/eyes/eye-{eye_no}/shine-r.DST", pos_info["shine-r"], True),
+        (
+            f"face-parts/eyes/eye-{eye_no}/outlines/eyelash-{lash_no}-l.DST",
+            pos_info["outline-l"][lash_no-1],
+            diff_clr_outline and heterochromia
+        ),
+        (
+            f"face-parts/eyes/eye-{eye_no}/outlines/eyelash-{lash_no}-r.DST",
+            pos_info["outline-r"][lash_no-1],
+            diff_clr_outline
+        ),
+        (f"face-parts/eyes/eye-{eye_no}/top-l.DST", pos_info["top-l"], False),
+        (f"face-parts/eyes/eye-{eye_no}/top-r.DST", pos_info["top-r"], False),
+    ]
 
-        if not cmd.is_end:
-            embroidery_final.append(cmd)
+    for emb_path, abs_pos, color_change in eye_data:
+        _, part = dst_load(emb_path)
+        embroidery_final += jump_to(get_needle_pos(embroidery_final), tuple(abs_pos)) + part[:-1]
+        if color_change:
+            embroidery_final.append(color_change_cmd)
     remove_last_jumps(embroidery_final)
 
     # Eyebrows
@@ -108,32 +115,15 @@ def combine_parts(
     needle_pos = get_needle_pos(embroidery_final)
     embroidery_final += jump_to(needle_pos, MOUTH_CENTER) + mouthe
 
-    extend_x = (0, 0)
-    extend_y = (0, 0)
-    current_pos = [0, 0]
-    color_changes = -1  # END has the same OpCode as COLOR_CHANGE but we don't wanna count it
-    for cmd in embroidery_final:
-        current_pos[0] += cmd.x
-        current_pos[1] += cmd.y
-        extend_x = max(extend_x[0], current_pos[0]), min(extend_x[1], current_pos[0])
-        extend_y = max(extend_y[0], current_pos[1]), min(extend_y[1], current_pos[1])
-        if cmd.op == DSTOpCode.COLOR_CHANGE:
-            color_changes += 1
+    header = dst_generate_header(embroidery_final)
+    content = header.to_bytes() + b"".join(cmd.to_bytes() for cmd in embroidery_final)
 
-    start_pos = (abs(extend_x[1]), extend_y[0])
-
-    header = DSTHeader(
-        "generated.DST",
-        len(embroidery_final),
-        color_changes,  # Color changes
-        extend_x,  # X extends
-        extend_y,  # Y extends
-        start_pos,  # AX, AY
-        (0, 0),
-        "******"
-    )
-
-    content = header.to_bytes() + b"".join([cmd.to_bytes() for cmd in embroidery_final])
+    if file_format == "DST":
+        header = dst_generate_header(embroidery_final)
+        content = header.to_bytes() + b"".join(cmd.to_bytes() for cmd in embroidery_final)
+    # elif file_format == "PES":
+    #     header = pes_generate_header(embroidery_final)
+    #     content = header.to_bytes() + b"".join(cmd.to_pec_bytes() for cmd in embroidery_final)
 
     if file_format == "PES":
         colors = [eyecols[0]]
@@ -174,4 +164,31 @@ def combine_parts(
 
 
 if __name__ == '__main__':
-    combine_parts(1, 2, 1, 11, diff_clr_outline=True, heterochromia=True)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="generator.py",
+        description="Generate Fumo faces via CLI.",
+    )
+    parser.add_argument("eye_no", type=int)
+    parser.add_argument("lash_no", type=int)
+    parser.add_argument("brow_no", type=int)
+    parser.add_argument("mouth_no", type=int)
+    parser.add_argument("-het", "--heterochromia", action="store_true")
+    parser.add_argument("-ocol", "--outline-color", action="store_true")
+    parser.add_argument("-f", "--file")
+
+    args = parser.parse_args()
+
+    data = combine_parts(
+        args.eye_no,
+        args.lash_no,
+        args.brow_no,
+        args.mouth_no,
+        diff_clr_outline=args.outline_color,
+        heterochromia=args.heterochromia,
+    )
+
+    fname = args.file if args.file else "generated.DST"
+    with open(fname, "wb") as fout:
+        fout.write(data)
