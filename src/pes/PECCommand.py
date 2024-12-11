@@ -1,11 +1,12 @@
 from .PECOpCode import PECOpCode
+from ..dst.DSTOpCode import DSTOpCode
 
 
 class PECCommand:
     commands = {
-        0b0: "STC",
-        0b001: "JMP",
-        0b010: "TRM",
+        PECOpCode.STITCH: "STC",
+        PECOpCode.JUMP: "JMP",
+        PECOpCode.TRIM: "TRM",
     }
 
     def __init__(self, arg0: int | bytes, *args, **kwargs):
@@ -67,6 +68,20 @@ class PECCommand:
         self.y = y
         self.op = op
 
+    @classmethod
+    def from_dst(cls, dst: "src.dst.DSTCommand") -> "PECCommand":
+        if dst.is_end:
+            return cls(0, 0, 0, is_end=True)
+        if dst.op == DSTOpCode.COLOR_CHANGE:
+            return cls(0, 0, 0, color_change=2)
+
+        op_switch = {
+            DSTOpCode.STITCH: PECOpCode.STITCH,
+            DSTOpCode.JUMP: PECOpCode.JUMP,
+            DSTOpCode.SEQUIN: PECOpCode.TRIM,  # Unsure but what else could it be
+        }
+        return cls(dst.x, -dst.y, op_switch[dst.op])
+
     def to_bytes(self) -> bytes:
         if self.op == PECOpCode.END:
             return b"\xff"
@@ -76,8 +91,9 @@ class PECCommand:
         if self.op > 0 or \
                 self.x > 2**6 - 1 or self.x < -(2**6) or\
                 self.y > 2**6 - 1 or self.y < -(2**6):
-            command_x = (1 << 15) + (self.op << 4) + self._encode_twos_complement(self.x, 12)
-            command_y = (1 << 15) + (self.op << 4) + self._encode_twos_complement(self.y, 12)
+            opcode = ((1 << 3) + self.op) << 4
+            command_x = (opcode << 8) + self._encode_twos_complement(self.x, 12)
+            command_y = (opcode << 8) + self._encode_twos_complement(self.y, 12)
             return command_x.to_bytes(2, "big") + command_y.to_bytes(2, "big")
 
         return \
@@ -88,10 +104,19 @@ class PECCommand:
         if self.op == PECOpCode.END:
             return "[END]"
         if self.op == PECOpCode.COLOR_CHANGE:
-            return f"[CLR]"
+            return "[CLR]"
 
         cmd_str = PECCommand.commands[self.op]
         return f"[{cmd_str}] {self.x},{self.y}"
+
+    def __repr__(self) -> str:
+        if self.op == PECOpCode.END:
+            return "<PECCommand END>"
+        if self.op == PECOpCode.COLOR_CHANGE:
+            return f"<PECCommand CLR {self.color}>"
+
+        cmd_str = PECCommand.commands[self.op]
+        return f"<PECCommand {cmd_str} {self.x},{self.y}>"
 
     @staticmethod
     def _encode_twos_complement(num: int, bits: int) -> int:

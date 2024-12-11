@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 import json
-import os
-import random
-import string
 from src.dst import dst_load, dst_generate_header, DSTCommand, DSTOpCode
-from src.pes import pes_generate_header
+from src.pes import pes_generate_header, PECCommand, PECOpCode, pec_generate_data
 from src.utils import get_needle_pos, sign
-import pyembroidery
 from typing import Literal
 # 1 unit = 0.1mm
 
@@ -115,17 +111,11 @@ def combine_parts(
     needle_pos = get_needle_pos(embroidery_final)
     embroidery_final += jump_to(needle_pos, MOUTH_CENTER) + mouthe
 
-    header = dst_generate_header(embroidery_final)
-    content = header.to_bytes() + b"".join(cmd.to_bytes() for cmd in embroidery_final)
-
     if file_format == "DST":
         header = dst_generate_header(embroidery_final)
-        content = header.to_bytes() + b"".join(cmd.to_bytes() for cmd in embroidery_final)
-    # elif file_format == "PES":
-    #     header = pes_generate_header(embroidery_final)
-    #     content = header.to_bytes() + b"".join(cmd.to_pec_bytes() for cmd in embroidery_final)
-
-    if file_format == "PES":
+        return header.to_bytes() \
+            + b"".join(cmd.to_bytes() for cmd in embroidery_final)
+    elif file_format == "PES":
         colors = [eyecols[0]]
         if heterochromia and len(eyecols) > 1:
             colors.append(eyecols[1])
@@ -143,24 +133,17 @@ def combine_parts(
         elif mouth_no == 11:
             colors += ["white", "#fcbbc5", "black"]
 
-        random_name = "".join(random.choices(string.ascii_letters, k=20))
-    
-        with open(random_name+".dst", "wb") as fout:
-            fout.write(content)
-        stitches = pyembroidery.read_dst(random_name+".dst")
-        stitches.fix_color_count()
-        for i in range(min(len(colors), len(stitches.threadlist))):
-            stitches.threadlist[i].set(colors[i])
-            stitches.threadlist[i].description = colors[i].capitalize()
-        pyembroidery.write_pes(stitches, random_name+".pes")
+        color = 2
+        for i, command in enumerate(embroidery_final):
+            embroidery_final[i] = PECCommand.from_dst(command)
+            if embroidery_final[i].op == PECOpCode.COLOR_CHANGE:
+                embroidery_final[i].color = color
+                color = 1 if color == 2 else 2
 
-        with open(random_name+".pes", "rb") as fin:
-            content = fin.read()
-
-        os.remove(random_name+".dst")
-        os.remove(random_name+".pes")
-
-    return content
+        return (
+            pes_generate_header(embroidery_final).to_bytes()
+            + pec_generate_data(embroidery_final, colors)
+        )
 
 
 if __name__ == '__main__':
@@ -177,9 +160,11 @@ if __name__ == '__main__':
     parser.add_argument("-het", "--heterochromia", action="store_true")
     parser.add_argument("-ocol", "--outline-color", action="store_true")
     parser.add_argument("-f", "--file")
+    parser.add_argument("-fmt", "--format")
 
     args = parser.parse_args()
 
+    format = args.format.upper() if args.format else "DST"
     data = combine_parts(
         args.eye_no,
         args.lash_no,
@@ -187,8 +172,9 @@ if __name__ == '__main__':
         args.mouth_no,
         diff_clr_outline=args.outline_color,
         heterochromia=args.heterochromia,
+        file_format=format,
     )
 
-    fname = args.file if args.file else "generated.DST"
+    fname = args.file if args.file else f"generated.{format}"
     with open(fname, "wb") as fout:
         fout.write(data)
