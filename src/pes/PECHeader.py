@@ -11,7 +11,7 @@ class PECHeader:
     def to_bytes(self) -> bytes:
         first_section = (
             b"LA:generated.PES   \r"
-            b" \xff\x00\xff\x06\x26    \x64 \x00 \x00   "
+            b"           \xff\x00\xff\x06\x26    \x64 \x00 \x00   "
             + self.color_changes.to_bytes(1, "big")
             + b"".join(clr.to_bytes(1, "big") for clr in self.colors)
         ).ljust(512)

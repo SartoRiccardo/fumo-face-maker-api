@@ -138,6 +138,30 @@ PEC_COLORS = {
 }
 
 
+def pes_load(fname: str) -> tuple[PESv1Header, PECHeader, list[PECCommand]]:
+    with open(fname, "rb") as fin:
+        pes_header_b = fin.read(18)
+        pes_header = PESv1Header(
+            int.from_bytes(pes_header_b[8:12], "little"),
+            int.from_bytes(pes_header_b[12:14], "little") != 0,
+            int.from_bytes(pes_header_b[14:16], "little") != 0,
+            int.from_bytes(pes_header_b[16:18], "little"),
+        )
+
+        fin.seek(pes_header.pec_section_offset)
+        pec_header_b = fin.read(512 + 20)
+        print(pec_header_b[:500])
+        color_changes = pec_header_b[48]
+        pec_header = PECHeader(
+            int.from_bytes(pec_header_b[512+2:512+5], "little"),
+            [pec_header_b[49+i] for i in range(color_changes+1)],
+            int.from_bytes(pec_header_b[512+8:512+10], "little"),
+            int.from_bytes(pec_header_b[512+10:512+12], "little"),
+        )
+
+        return pes_header, pec_header, None
+
+
 def pes_generate_header(_e) -> PESv1Header:
     return PESv1Header(
         PESv1Header.length(),

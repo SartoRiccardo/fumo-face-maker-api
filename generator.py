@@ -49,14 +49,14 @@ def combine_parts(
     if accessories is None:
         accessories = []
     if eyecols is None or len(eyecols) == 0:
-        eyecols = ["red"]
+        eyecols = ["vermilion"]
         if heterochromia:
-            eyecols.append("#0a55a3")
+            eyecols.append("light blue")
     if outcols is None or len(outcols) == 0:
         if diff_clr_outline:
-            outcols = ["#2a1301"]
+            outcols = ["red"]
             if heterochromia:
-                outcols.append("#0e1f7c")
+                outcols.append("blue")
         else:
             outcols = ["black"]
 
