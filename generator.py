@@ -32,7 +32,7 @@ def jump_to(pos_from: tuple[int, int], pos_to: tuple[int, int]) -> list[DSTComma
 
 
 def combine_parts(
-        eye_no: int,
+        eye_no: int | tuple[int, int],
         lash_no: int,
         brow_no: int,
         mouth_no: int,
@@ -46,6 +46,8 @@ def combine_parts(
         outcols: list[str] | None = None,
         file_format: Literal["DST", "PES"] = "DST"
 ) -> bytes:
+    if isinstance(eye_no, int):
+        eye_no = (eye_no, eye_no)
     if accessories is None:
         accessories = []
     if eyecols is None or len(eyecols) == 0:
@@ -71,26 +73,31 @@ def combine_parts(
     embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
 
     # Eyes
-    with open(f"face-parts/eyes/eye-{eye_no}/positions.json") as fin:
-        pos_info = json.load(fin)
+    with open(f"face-parts/eyes/eye-{eye_no[0]}/positions.json") as fin:
+        pos_info_0 = json.load(fin)
+    if eye_no[0] == eye_no[1]:
+        pos_info_1 = pos_info_0
+    else:
+        with open(f"face-parts/eyes/eye-{eye_no[1]}/positions.json") as fin:
+            pos_info_1 = json.load(fin)
 
     eye_data = [
-        (f"face-parts/eyes/eye-{eye_no}/pupils/fill-{pupil_no}-l.DST", pos_info["fill-l"][pupil_no-1], heterochromia),
-        (f"face-parts/eyes/eye-{eye_no}/pupils/fill-{pupil_no}-r.DST", pos_info["fill-r"][pupil_no-1], True),
-        (f"face-parts/eyes/eye-{eye_no}/shine-l.DST", pos_info["shine-l"], False),
-        (f"face-parts/eyes/eye-{eye_no}/shine-r.DST", pos_info["shine-r"], True),
+        (f"face-parts/eyes/eye-{eye_no[0]}/pupils/fill-{pupil_no}-l.DST", pos_info_0["fill-l"][pupil_no-1], heterochromia),
+        (f"face-parts/eyes/eye-{eye_no[1]}/pupils/fill-{pupil_no}-r.DST", pos_info_1["fill-r"][pupil_no-1], True),
+        (f"face-parts/eyes/eye-{eye_no[0]}/shine-l.DST", pos_info_0["shine-l"], False),
+        (f"face-parts/eyes/eye-{eye_no[1]}/shine-r.DST", pos_info_1["shine-r"], True),
         (
-            f"face-parts/eyes/eye-{eye_no}/outlines/eyelash-{lash_no}-l.DST",
-            pos_info["outline-l"][lash_no-1],
+            f"face-parts/eyes/eye-{eye_no[0]}/outlines/eyelash-{lash_no}-l.DST",
+            pos_info_0["outline-l"][lash_no-1],
             diff_clr_outline and heterochromia
         ),
         (
-            f"face-parts/eyes/eye-{eye_no}/outlines/eyelash-{lash_no}-r.DST",
-            pos_info["outline-r"][lash_no-1],
+            f"face-parts/eyes/eye-{eye_no[1]}/outlines/eyelash-{lash_no}-r.DST",
+            pos_info_1["outline-r"][lash_no-1],
             diff_clr_outline
         ),
-        (f"face-parts/eyes/eye-{eye_no}/top-l.DST", pos_info["top-l"], False),
-        (f"face-parts/eyes/eye-{eye_no}/top-r.DST", pos_info["top-r"], False),
+        (f"face-parts/eyes/eye-{eye_no[0]}/top-l.DST", pos_info_0["top-l"], False),
+        (f"face-parts/eyes/eye-{eye_no[1]}/top-r.DST", pos_info_1["top-r"], False),
     ]
 
     for emb_path, abs_pos, color_change in eye_data:
@@ -161,12 +168,14 @@ if __name__ == '__main__':
     parser.add_argument("-ocol", "--outline-color", action="store_true")
     parser.add_argument("-f", "--file")
     parser.add_argument("-fmt", "--format")
+    parser.add_argument("-e2", "--eye2", type=int)
 
     args = parser.parse_args()
 
     format = args.format.upper() if args.format else "DST"
+    eye_no = args.eye_no if args.eye2 is None else (args.eye_no, args.eye2)
     data = combine_parts(
-        args.eye_no,
+        eye_no,
         args.lash_no,
         args.brow_no,
         args.mouth_no,
