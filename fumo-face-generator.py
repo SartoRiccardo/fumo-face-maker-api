@@ -6,8 +6,15 @@ import generator
 
 async def list_parts(_r: web.Request) -> web.Response:
     parts = {
-        "eyes": len([f for f in os.listdir("face-parts/eyes") if f.startswith("eye-") and f.endswith("lash1.DST")]),
-        "eyelashes": len([f for f in os.listdir("face-parts/eyes") if f.startswith("eye-1-")]),
+        "eyes": len([f for f in os.listdir("face-parts/eyes") if f.startswith("eye-")]),
+        "eyelashes": len([
+            f for f in os.listdir("face-parts/eyes/eye-1/outlines")
+            if f.startswith("eyelash-") and f.endswith("-r.DST")
+        ]),
+        "fills": len([
+            f for f in os.listdir("face-parts/eyes/eye-1/pupils")
+            if f.startswith("fill-") and f.endswith("-r.DST")
+        ]),
         "eyebrows": len([f for f in os.listdir("face-parts/eyebrows") if f.startswith("eyebrow-")]),
         "mouths": len([f for f in os.listdir("face-parts/mouths") if f.startswith("mouth-")]),
     }
@@ -39,7 +46,7 @@ async def make_face(request: web.Request) -> web.Response:
     ])
     if len(fname_attrs) > 0:
         filename += f"-{fname_attrs}"
-    filename += ".PES"
+    filename += f".{file_format}"
 
     try:
         face = generator.combine_parts(
