@@ -1,4 +1,5 @@
 from src.utils import cmd_to_coords, coords_to_cmd
+from .DSTOpCode import DSTOpCode
 
 
 class DSTCommand:
@@ -48,3 +49,7 @@ class DSTCommand:
         if self.is_end:
             cmd = cmd[:2] + (cmd[2] + 0b00110000).to_bytes(1, "little")
         return cmd
+
+    @classmethod
+    def color_change(cls) -> "DSTCommand":
+        return DSTCommand(0, 0, op=DSTOpCode.COLOR_CHANGE)

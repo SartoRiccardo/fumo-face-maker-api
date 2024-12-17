@@ -19,6 +19,10 @@ def remove_last_jumps(embroidery: list[DSTCommand]) -> None:
             break
 
 
+def sum_tuples(a: tuple[int, int], b: tuple[int, int]) -> tuple[int, int]:
+    return a[0]+b[0], a[1]+b[1]
+
+
 def jump_to(pos_from: tuple[int, int], pos_to: tuple[int, int]) -> list[DSTCommand]:
     movement = [pos_to[0]-pos_from[0], pos_to[1]-pos_from[1]]
     commands = []
@@ -29,6 +33,45 @@ def jump_to(pos_from: tuple[int, int], pos_to: tuple[int, int]) -> list[DSTComma
         movement[1] -= move_y
         commands.append(DSTCommand(move_x, move_y, DSTOpCode.JUMP))
     return commands
+
+
+def optimize_jumps(embroidery: list[DSTCommand]) -> None:
+    """Optimizes JUMP commands in-place"""
+    i = 0
+    jump = (0, 0)
+    while i < len(embroidery):
+        if embroidery[i].op == DSTOpCode.JUMP:
+            cmd = embroidery.pop(i)
+            jump = sum_tuples(jump, (cmd.x, cmd.y))
+        else:
+            if jump != (0, 0):
+                added_cmds = jump_to((0, 0), jump)
+                for cmd in added_cmds:
+                    embroidery.insert(i, cmd)
+                i += len(added_cmds)
+                jump = (0, 0)
+            i += 1
+
+
+def append_commands(
+        append_to: list[DSTCommand],
+        *embroideries: list[DSTCommand],
+        current_position: tuple[int, int] = None,
+) -> tuple[int, int]:
+    """
+    Appends to_append embroidery_final.
+    :param append_to: The array to append to
+    :param embroideries: The commands to append
+    :param current_position: The current needle position
+    :return: The new needle position
+    """
+    if current_position is None:
+        current_position = (0, 0)
+    for commands in embroideries:
+        for cmd in commands:
+            current_position = sum_tuples(current_position, (cmd.x, cmd.y))
+            append_to.append(cmd)
+    return current_position
 
 
 def combine_parts(
@@ -69,7 +112,7 @@ def combine_parts(
     mouthh, mouthe = dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
 
     embroidery_final = []
-    color_change_cmd = DSTCommand(0, 0, DSTOpCode.COLOR_CHANGE)
+    cur_needle_pos = (0, 0)
 
     # Don't know why there's usually 2 empty JUMPs, but I'll put them out of fear.
     embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
@@ -90,7 +133,12 @@ def combine_parts(
     fills_idx = [0, 0]
     fills_pos = [pos_info_0["fill-l"][fill_no-1], pos_info_1["fill-r"][fill_no-1]]
     idx_copy = 0
-    embroidery_final += jump_to(get_needle_pos(embroidery_final), fills_pos[0])
+
+    cur_needle_pos = append_commands(
+        embroidery_final,
+        jump_to(cur_needle_pos, fills_pos[0]),
+        current_position=cur_needle_pos,
+    )
     while fills_idx[0] < len(fills[0]) or fills_idx[1] < len(fills[1]):
         prev_idx = idx_copy
         append_clr = False
@@ -100,19 +148,22 @@ def combine_parts(
             if heterochromia:
                 append_clr = True
             idx_copy = (idx_copy + 1) % len(fills)
-            embroidery_final += jump_to(fills_pos[prev_idx], fills_pos[idx_copy])
+
+            cur_needle_pos = append_commands(
+                embroidery_final,
+                jump_to(fills_pos[prev_idx], fills_pos[idx_copy]),
+                current_position=cur_needle_pos,
+            )
         else:
             embroidery_final.append(command)
+            cur_needle_pos = sum_tuples(cur_needle_pos, (command.x, command.y))
+            fills_pos[idx_copy] = sum_tuples(fills_pos[idx_copy], (command.x, command.y))
             fills_idx[idx_copy] += 1
-            fills_pos[idx_copy] = (
-                fills_pos[idx_copy][0] + command.x,
-                fills_pos[idx_copy][1] + command.y,
-            )
 
         if idx_copy == 0 and idx_copy != prev_idx:
             append_clr = True
         if append_clr:
-            embroidery_final.append(color_change_cmd)
+            embroidery_final.append(DSTCommand.color_change())
 
     eye_data = [
         (f"face-parts/eyes/eye-{eye_no[0]}/shine-l.DST", pos_info_0["shine-l"], False),
@@ -133,21 +184,35 @@ def combine_parts(
 
     for emb_path, abs_pos, color_change in eye_data:
         _, part = dst_load(emb_path)
-        embroidery_final += jump_to(get_needle_pos(embroidery_final), tuple(abs_pos)) + part[:-1]
+        cur_needle_pos = append_commands(
+            embroidery_final,
+            jump_to(cur_needle_pos, abs_pos),
+            part[:-1],
+            current_position=cur_needle_pos,
+        )
         if color_change:
-            embroidery_final.append(color_change_cmd)
-    remove_last_jumps(embroidery_final)
+            embroidery_final.append(DSTCommand.color_change())
 
     # Eyebrows
-    needle_pos = get_needle_pos(embroidery_final)
-    embroidery_final += jump_to(needle_pos, EYEBROW_CENTER) + browe[:-1]
-    remove_last_jumps(embroidery_final)
+    cur_needle_pos = append_commands(
+        embroidery_final,
+        jump_to(cur_needle_pos, EYEBROW_CENTER),
+        browe[:-1],
+        current_position=cur_needle_pos,
+    )
 
     # Mouth
     if mouth_no in [6, 11, 4]:  # Special mouths that don't start with black thread
-        embroidery_final.append(color_change_cmd)
-    needle_pos = get_needle_pos(embroidery_final)
-    embroidery_final += jump_to(needle_pos, MOUTH_CENTER) + mouthe
+        embroidery_final.append(DSTCommand.color_change())
+    cur_needle_pos = append_commands(
+        embroidery_final,
+        jump_to(cur_needle_pos, MOUTH_CENTER),
+        mouthe,
+        current_position=cur_needle_pos,
+    )
+
+    # Cleanup
+    optimize_jumps(embroidery_final)
 
     if file_format == "DST":
         header = dst_generate_header(embroidery_final)
