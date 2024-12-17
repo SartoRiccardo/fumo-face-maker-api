@@ -1,27 +1,10 @@
 import os
 from config import Hosting
 from aiohttp import web
-import aiohttp_cors
 import generator
-import ssl
-
-# https://docs.aiohttp.org/en/v3.8.5/web_advanced.html#complex-applications
-# async def init_client_session(_app):
-#     async def init_session():
-#         async with aiohttp.ClientSession() as session:
-#             server.apis.pool.set_session(session)
-#             await asyncio.Future()  # Run forever
-#
-#     task = asyncio.create_task(init_session())
-#
-#     yield
-#
-#     task.cancel()
-#     with contextlib.suppress(asyncio.CancelledError):
-#         await task
 
 
-async def list_parts(request):
+async def list_parts(_r: web.Request) -> web.Response:
     parts = {
         "eyes": len([f for f in os.listdir("face-parts/eyes") if f.startswith("eye-") and f.endswith("lash1.DST")]),
         "eyelashes": len([f for f in os.listdir("face-parts/eyes") if f.startswith("eye-1-")]),
@@ -31,7 +14,7 @@ async def list_parts(request):
     return web.json_response(parts)
 
 
-async def make_face(request):
+async def make_face(request: web.Request) -> web.Response:
     try:
         eye_no = int(request.query["eyes"])
         lash_no = int(request.query["eyelashes"])
@@ -77,19 +60,12 @@ def main():
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
     app = web.Application()
-    cors = aiohttp_cors.setup(app, defaults={
-        "*": aiohttp_cors.ResourceOptions(),
-    })
+    app.add_routes([
+        web.get("/face/list", list_parts),
+        web.get("/face", make_face),
+    ])
 
-    res_face_list = cors.add(app.router.add_resource("/face/list"))
-    cors.add(res_face_list.add_route("GET", list_parts))
-    res_face = cors.add(app.router.add_resource("/face"))
-    cors.add(res_face.add_route("GET", make_face))
-
-    print(f"[START] Listening on port {Hosting.port}...")
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.load_cert_chain('domain_srv.crt', 'domain_srv.key')
-    web.run_app(app, host=Hosting.host, port=Hosting.port, ssl_context=ssl_context)
+    web.run_app(app, host=Hosting.host, port=Hosting.port)
 
 
 if __name__ == '__main__':
