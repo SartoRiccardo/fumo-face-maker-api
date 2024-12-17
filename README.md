@@ -1,11 +1,14 @@
 # Fumo Face Generator API
 
-The API to generate the Fumo Face files.
+The API to generate the Fumo face files. You can run it as a web server or as a CLI tool.
 
 ## Usage
-1. Clone the repository
-2. Install the dependencies in `requirements.txt`
-3. Run `fumo-face-generator.py`
+1. Clone the repository: `git clone https://github.com/SartoRiccardo/fumo-face-maker-api.git && cd fumo-face-maker-api`
+2. Install the dependencies: `pip install -r requirements.txt`
+3. You can now either run the web server or the CLI tool.
+   - To run the web server, simply run `fumo-face-maker.py`
+   - To run it as a CLI tool, run `generator.py` as an executable on your terminal
+
 
 ## Genaration
 To generate a face, it combines the DST files found in `face-parts`.
@@ -15,6 +18,7 @@ While the eyebrows and mouth are (almost) a simple copy and paste, the eye pasti
 In order, it pastes:
 1. The left pupil
 2. The right pupil (color change if necessary)
+    - Should the left and right pupil have different colors (e.g. gradient eyes), it will switch between pasting the left and the right after each color change.
 3. The left & right eye shine (color change)
 4. The left outline (color change)
 5. The right outline (color change if necessary)
