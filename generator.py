@@ -37,11 +37,10 @@ def combine_parts(
         brow_no: int,
         mouth_no: int,
         blush_no: int = 0,
-        pupil_no: int = 1,
+        fill_no: int = 1,
         accessories: list[int] | None = None,
         heterochromia: bool = False,
         diff_clr_outline: bool = False,
-        gradient: bool = False,
         eyecols: list[str] | None = None,
         outcols: list[str] | None = None,
         file_format: Literal["DST", "PES"] = "DST"
@@ -54,6 +53,10 @@ def combine_parts(
         eyecols = ["vermilion"]
         if heterochromia:
             eyecols.append("light blue")
+        if fill_no != 1:
+            eyecols.append("salmon pink")
+            if heterochromia:
+                eyecols.append("#c089d8")
     if outcols is None or len(outcols) == 0:
         if diff_clr_outline:
             outcols = ["red"]
@@ -81,9 +84,37 @@ def combine_parts(
         with open(f"face-parts/eyes/eye-{eye_no[1]}/positions.json") as fin:
             pos_info_1 = json.load(fin)
 
+    _, fill_l = dst_load(f"face-parts/eyes/eye-{eye_no[0]}/pupils/fill-{fill_no}-l.DST")
+    _, fill_r = dst_load(f"face-parts/eyes/eye-{eye_no[1]}/pupils/fill-{fill_no}-r.DST")
+    fills = [fill_l, fill_r]
+    fills_idx = [0, 0]
+    fills_pos = [pos_info_0["fill-l"][fill_no-1], pos_info_1["fill-r"][fill_no-1]]
+    idx_copy = 0
+    embroidery_final += jump_to(get_needle_pos(embroidery_final), fills_pos[0])
+    while fills_idx[0] < len(fills[0]) or fills_idx[1] < len(fills[1]):
+        prev_idx = idx_copy
+        append_clr = False
+        command = fills[idx_copy][fills_idx[idx_copy]]
+        if command.op == DSTOpCode.COLOR_CHANGE or command.is_end:
+            fills_idx[idx_copy] += 1
+            if heterochromia:
+                append_clr = True
+            idx_copy = (idx_copy + 1) % len(fills)
+            embroidery_final += jump_to(fills_pos[prev_idx], fills_pos[idx_copy])
+        else:
+            embroidery_final.append(command)
+            fills_idx[idx_copy] += 1
+            fills_pos[idx_copy] = (
+                fills_pos[idx_copy][0] + command.x,
+                fills_pos[idx_copy][1] + command.y,
+            )
+
+        if idx_copy == 0 and idx_copy != prev_idx:
+            append_clr = True
+        if append_clr:
+            embroidery_final.append(color_change_cmd)
+
     eye_data = [
-        (f"face-parts/eyes/eye-{eye_no[0]}/pupils/fill-{pupil_no}-l.DST", pos_info_0["fill-l"][pupil_no-1], heterochromia),
-        (f"face-parts/eyes/eye-{eye_no[1]}/pupils/fill-{pupil_no}-r.DST", pos_info_1["fill-r"][pupil_no-1], True),
         (f"face-parts/eyes/eye-{eye_no[0]}/shine-l.DST", pos_info_0["shine-l"], False),
         (f"face-parts/eyes/eye-{eye_no[1]}/shine-r.DST", pos_info_1["shine-r"], True),
         (
@@ -125,7 +156,11 @@ def combine_parts(
     elif file_format == "PES":
         colors = [eyecols[0]]
         if heterochromia and len(eyecols) > 1:
-            colors.append(eyecols[1])
+            colors.append(eyecols[min(1, len(eyecols)-1)])
+        if fill_no != 1:
+            colors.append(eyecols[min(2, len(eyecols)-1)])
+            if heterochromia:
+                colors.append(eyecols[min(3, len(eyecols)-1)])
         colors.append("white")
         colors.append(outcols[0])
         if diff_clr_outline:
@@ -160,15 +195,23 @@ if __name__ == '__main__':
         prog="generator.py",
         description="Generate Fumo faces via CLI.",
     )
-    parser.add_argument("eye_no", type=int)
-    parser.add_argument("lash_no", type=int)
-    parser.add_argument("brow_no", type=int)
-    parser.add_argument("mouth_no", type=int)
-    parser.add_argument("-het", "--heterochromia", action="store_true")
-    parser.add_argument("-ocol", "--outline-color", action="store_true")
-    parser.add_argument("-f", "--file")
-    parser.add_argument("-fmt", "--format")
-    parser.add_argument("-e2", "--eye2", type=int)
+    parser.add_argument("eye_no", type=int, help="The number of the eyes")
+    parser.add_argument("lash_no", type=int, help="The number of the eyelashes")
+    parser.add_argument("brow_no", type=int, help="The number of the eyebrows")
+    parser.add_argument("mouth_no", type=int, help="The number of the mouth")
+    parser.add_argument("-het", "--heterochromia", action="store_true", help="Makes eyes a different thread color")
+    parser.add_argument("-ocol", "--outline-color", action="store_true",
+                        help="Makes the eye outlines a different color from black.\n"
+                             "If -het is enabled, both outlines will have a different color.")
+    parser.add_argument("-f", "--file", help="The name of the file to output it to")
+    parser.add_argument("-fmt", "--format", help="The format of the file to output it to")
+    parser.add_argument("-e2", "--eye2", type=int, help="The number of the right eye (defaults to eye_no).")
+    parser.add_argument(
+        "--fill",
+        type=int,
+        help="The number of the eye filling. Defaults to mono color.",
+        default=1
+    )
 
     args = parser.parse_args()
 
@@ -182,6 +225,7 @@ if __name__ == '__main__':
         diff_clr_outline=args.outline_color,
         heterochromia=args.heterochromia,
         file_format=format,
+        fill_no=args.fill,
     )
 
     fname = args.file if args.file else f"generated.{format}"
