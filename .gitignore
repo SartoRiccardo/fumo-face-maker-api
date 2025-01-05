@@ -1,0 +1,10 @@
+.venv
+generated.DST
+.DS_Store
+.idea
+__pycache__
+config.py
+dst-to-svg.py
+svgs/
+test-generations
+**/_s*.py

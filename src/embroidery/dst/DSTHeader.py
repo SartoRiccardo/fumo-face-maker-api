@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.utils import sign
+from src.embroidery.utils import sign
 
 
 @dataclass

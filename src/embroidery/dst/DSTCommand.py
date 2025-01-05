@@ -1,4 +1,4 @@
-from src.utils import cmd_to_coords, coords_to_cmd
+from src.embroidery.utils import cmd_to_coords, coords_to_cmd
 from .DSTOpCode import DSTOpCode
 
 

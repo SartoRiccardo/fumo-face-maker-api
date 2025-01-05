@@ -1,5 +1,5 @@
 from .PECOpCode import PECOpCode
-from ..dst.DSTOpCode import DSTOpCode
+from src.embroidery.dst import DSTOpCode
 
 
 class PECCommand:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import json
-from src.dst import dst_load, dst_generate_header, DSTCommand, DSTOpCode
-from src.pes import pes_generate_header, PECCommand, PECOpCode, pec_generate_data
-from src.utils import get_needle_pos, sign
+from src.embroidery.dst import dst_load, dst_generate_header, DSTCommand, DSTOpCode
+from src.embroidery.pes import pes_generate_header, PECCommand, PECOpCode, pec_generate_data
+from src.embroidery.utils import sign
 from typing import Literal
 # 1 unit = 0.1mm
 
