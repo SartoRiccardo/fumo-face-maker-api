@@ -89,7 +89,7 @@ class PECCommand:
             return b"\xfe\xb0" + self.color.to_bytes(1, "little")
 
         if self.op > 0 or \
-                self.x > 2**6 - 1 or self.x < -(2**6) or\
+                self.x > 2**6 - 1 or self.x < -(2**6) or \
                 self.y > 2**6 - 1 or self.y < -(2**6):
             opcode = ((1 << 3) + self.op) << 4
             command_x = (opcode << 8) + self._encode_twos_complement(self.x, 12)

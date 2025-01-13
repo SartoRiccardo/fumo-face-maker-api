@@ -14,9 +14,12 @@ class PESv1Header:
             self.pec_section_offset.to_bytes(4, "little") +
             int(self.large_hoop).to_bytes(2, "little") +
             int(self.use_existing_design_area).to_bytes(2, "little") +
-            self.segment_block_count.to_bytes(2, "little")
+            self.segment_block_count.to_bytes(2, "little") +
+            # 4 mysterious bytes not documented in the edutech wiki page.
+            # No clue what they do but the file breaks if they're not there.
+            b"\x00\x00\x00\x00"
         )
 
     @classmethod
     def length(cls):
-        return 4 + 4 + 4 + 2 + 2 + 2
+        return 4 + 4 + 4 + 2 + 2 + 2 + 4

@@ -8,7 +8,7 @@ async def get(request: web.Request) -> web.Response:
         lash_no = int(request.query["eyelashes"])
         brow_no = int(request.query["eyebrows"])
         mouth_no = int(request.query["mouth"])
-        eyecols = request.query["eyecols"].split(",")[:2] if "eyecols" in request.query else None
+        eyecols = request.query["eyecols"].split(",")[:4] if "eyecols" in request.query else None
         outcols = request.query["outcols"].split(",")[:2] if "outcols" in request.query else None
         heterochromia = request.query.get("heterochromia", "false").lower() != "false"
         diff_clr_outline = request.query.get("diff_clr_outline", "false").lower() != "false"
