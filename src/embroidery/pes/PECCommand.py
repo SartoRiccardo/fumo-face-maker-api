@@ -32,11 +32,6 @@ class PECCommand:
         is_short = bytecode[0] >> 7 == 0
         byte_count = 1 if is_short else 2
         coord_len = 7 if is_short else 12
-        print(
-            int.from_bytes(bytecode[:byte_count], "big"),
-            int.from_bytes(bytecode[byte_count:byte_count*2], "big"),
-            coord_len,
-        )
         self.x = self._decode_twos_complement(
             int.from_bytes(bytecode[:byte_count], "big") & (2**coord_len - 1),
             coord_len

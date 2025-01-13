@@ -140,7 +140,7 @@ PEC_COLORS = {
 
 def pes_load(fname: str) -> tuple[PESv1Header, PECHeader, list[PECCommand]]:
     with open(fname, "rb") as fin:
-        pes_header_b = fin.read(18)
+        pes_header_b = fin.read(PESv1Header.length())
         pes_header = PESv1Header(
             int.from_bytes(pes_header_b[8:12], "little"),
             int.from_bytes(pes_header_b[12:14], "little") != 0,
@@ -158,7 +158,18 @@ def pes_load(fname: str) -> tuple[PESv1Header, PECHeader, list[PECCommand]]:
             int.from_bytes(pec_header_b[512+10:512+12], "little"),
         )
 
-        return pes_header, pec_header, []
+        commands = []
+        while (cmd := fin.read(1)) != b"\xFF":
+            int_val = int.from_bytes(cmd, "big")
+            cmd_len = 2
+            if int_val == 0xFE:
+                cmd_len = 3
+            elif int_val >> 7:
+                cmd_len = 4
+            commands.append(PECCommand(cmd + fin.read(cmd_len-1)))
+        commands.append(PECCommand(cmd))
+
+        return pes_header, pec_header, commands
 
 
 def pes_generate_header(_e) -> PESv1Header:
