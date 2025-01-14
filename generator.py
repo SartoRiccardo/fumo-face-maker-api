@@ -56,6 +56,17 @@ def optimize_jumps(embroidery: list[DSTCommand]) -> None:
         embroidery.pop(-2)
 
 
+def relocate_clr(embroidery: list[DSTCommand]) -> None:
+    """Relocates all CLR commands so they're before JUMPs"""
+    clr = None
+    for i in range(len(embroidery)-2, 0, -1):
+        if embroidery[i].op == DSTOpCode.COLOR_CHANGE:
+            clr = embroidery.pop(i)
+        elif clr and embroidery[i].op == DSTOpCode.STITCH:
+            embroidery.insert(i+1, clr)
+            clr = None
+
+
 def append_commands(
         append_to: list[DSTCommand],
         *embroideries: list[DSTCommand],
@@ -212,6 +223,7 @@ def combine_parts(
 
     # Cleanup
     optimize_jumps(embroidery_final)
+    relocate_clr(embroidery_final)
 
     # Don't know why there's usually 2-3 empty JUMPs, but I'll put them out of fear.
     embroidery_final.insert(0, DSTCommand(0, 0, DSTOpCode.JUMP))
