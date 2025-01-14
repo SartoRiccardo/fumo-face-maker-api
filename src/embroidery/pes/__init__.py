@@ -4,8 +4,49 @@ from .PESv1Header import PESv1Header
 from .PECOpCode import PECOpCode
 from .PECCommand import PECCommand
 from .PECHeader import PECHeader
+import math
 
-EMPTY_THUMBNAIL = b"\x00\x00\x00\x00\x00\x00\xF0\xFF\xFF\xFF\xFF\x0F\x08\x00\x00\x00\x00\x10\x04\x00\x00\x00\x00\x20\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x02\x00\x00\x00\x00\x40\x04\x00\x00\x00\x00\x20\x08\x00\x00\x00\x00\x10\xF0\xFF\xFF\xFF\xFF\x0F\x00\x00\x00\x00\x00\x00"
+THMB_SIZE = (0x06, 0x26)
+THMB_PADDING = 2
+EMPTY_THUMBNAIL = b"\x00\x00\x00\x00\x00\x00" \
+                  b"\xF0\xFF\xFF\xFF\xFF\x0F" \
+                  b"\x08\x00\x00\x00\x00\x10" \
+                  b"\x04\x00\x00\x00\x00\x20" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x02\x00\x00\x00\x00\x40" \
+                  b"\x04\x00\x00\x00\x00\x20" \
+                  b"\x08\x00\x00\x00\x00\x10" \
+                  b"\xF0\xFF\xFF\xFF\xFF\x0F" \
+                  b"\x00\x00\x00\x00\x00\x00"
+
 PEC_COLORS = {
     "#1a0a94": 1,
     "prussian blue": 1,
@@ -182,22 +223,16 @@ def pes_generate_header(_e) -> PESv1Header:
 
 
 def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> bytes:
-    stitch_data = b""
     min_x = min_y = float("inf")
     max_x = max_y = -float("inf")
     pos_x = pos_y = 0
     for command in embroidery:
-        stitch_data += command.to_bytes()
         pos_x += command.x
         pos_y += command.y
-        if pos_x < min_x:
-            min_x = pos_x
-        if pos_x > max_x:
-            max_x = pos_x
-        if pos_y < min_y:
-            min_y = pos_y
-        if pos_y > max_y:
-            max_y = pos_y
+        min_x = min(min_x, pos_x)
+        max_x = max(max_x, pos_x)
+        min_y = min(min_y, pos_y)
+        max_y = max(max_y, pos_y)
 
     width, height = max_x-min_x, max_y-min_y
     """
@@ -216,11 +251,15 @@ def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> 
         =>  (-2min_x) / 2
         =>  -min_x
     """
-    stitch_data = PECCommand(
-        -min_x, -min_y,
-        PECOpCode.JUMP
-    ).to_bytes() + stitch_data
+    embroidery = [
+        PECCommand(
+            -min_x, -min_y,
+            PECOpCode.JUMP
+        ),
+        *embroidery,
+    ]
 
+    stitch_data = b"".join([cmd.to_bytes() for cmd in embroidery])
     header = PECHeader(
         len(stitch_data),
         [
@@ -233,8 +272,55 @@ def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> 
 
     return header.to_bytes() + \
         stitch_data + \
-        pec_generate_thumbnail(len(colors))
+        pec_generate_thumbnail(embroidery, (width, height))
 
 
-def pec_generate_thumbnail(color_changes: int) -> bytes:
-    return EMPTY_THUMBNAIL * (color_changes+1)
+def pec_generate_thumbnail(embroidery: list[PECCommand], size: tuple[int, int]) -> bytes:
+    """Assumes min_x and min_y are both 0 (corrected with the initial JUMP)"""
+    if (THMB_SIZE[0]*8-THMB_PADDING*2)/(THMB_SIZE[1]-THMB_PADDING*2) >= size[0]/size[1]:
+        step = size[1]/(THMB_SIZE[1]-THMB_PADDING*2)
+        padding = (int((THMB_SIZE[0]*8 - THMB_PADDING*2 - size[0] // step) // 2), 0)
+    else:
+        step = size[0]/(THMB_SIZE[0]*8-THMB_PADDING*2)
+        print(THMB_SIZE[1] - THMB_PADDING*2, size[1])
+        padding = (0, int((THMB_SIZE[1] - THMB_PADDING*2 - size[1] // step) // 2))
+
+    thumbnail = EMPTY_THUMBNAIL
+    current = EMPTY_THUMBNAIL
+    x, y = 0, 0
+    for cmd in embroidery:
+        if cmd.op == PECOpCode.STITCH:
+            if cmd.x == 0:
+                angle = 90 * (-1 if cmd.y < 0 else 1)
+            else:
+                angle = math.atan(cmd.y / cmd.x)
+
+            shiftx, shifty = 0, 0
+            while abs(shiftx) <= abs(cmd.x) and abs(shifty) <= abs(cmd.y):
+                current = mark_graphics_bit(
+                    current,
+                    round((x+shiftx)/step),
+                    round((y+shifty)/step),
+                    padding,
+                )
+                shiftx += math.sin(angle) * step
+                shifty += math.cos(angle) * step
+
+        if cmd.op == PECOpCode.COLOR_CHANGE or cmd.op == PECOpCode.END:
+            thumbnail += current
+            current = EMPTY_THUMBNAIL
+        x += cmd.x
+        y += cmd.y
+
+    return thumbnail
+
+
+def mark_graphics_bit(graphics: bytes, x: int, y: int, padding: tuple[int, int] = None) -> bytes:
+    if padding is None:
+        padding = (0, 0)
+    x += THMB_PADDING + padding[0]
+    y += THMB_PADDING + padding[1]
+    byte = y * THMB_SIZE[0] + x // 8
+    bit = x % 8
+    new_byte = graphics[byte] | (1 << bit)
+    return graphics[:byte] + new_byte.to_bytes(1, "big") + graphics[byte+1:]
