@@ -10,19 +10,21 @@ def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
     pos_y *= -1
     _, commands = dst_load(path)
     paths = []
-    current = []
+    current = None
     for i, c in enumerate(commands):
         pos_x += c.x
         pos_y -= c.y
-        if c.op == DSTOpCode.STITCH:
-            current.append(f"{pos_x},{pos_y}")
-        elif len(current) and (
+        if c.op == DSTOpCode.STITCH and (c.x != 0 or c.y != 0):
+            if current is None:
+                current = f"m{pos_x}{' ' if pos_y >= 0 else ''}{pos_y}"
+            current += f"{' ' if c.x >= 0 else ''}{c.x}{' ' if -c.y >= 0 else ''}{-c.y}"
+        elif current is not None and (
                 c.op == DSTOpCode.COLOR_CHANGE or
                 c.is_end or
                 c.op == DSTOpCode.JUMP and commands[i-1].op == DSTOpCode.STITCH
         ):
-            paths.append(" ".join(current))
-            current = []
+            paths.append(current)
+            current = None
     return paths
 
 
