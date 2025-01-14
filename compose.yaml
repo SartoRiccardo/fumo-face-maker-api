@@ -1,0 +1,4 @@
+services:
+  fumofacemaker_api:
+    build:
+      context: .
