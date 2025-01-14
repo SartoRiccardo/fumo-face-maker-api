@@ -149,7 +149,7 @@ def pes_load(fname: str) -> tuple[PESv1Header, PECHeader, list[PECCommand]]:
         )
 
         fin.seek(pes_header.pec_section_offset)
-        pec_header_b = fin.read(512 + 20)
+        pec_header_b = fin.read(512 + 16)
         color_changes = pec_header_b[48]
         pec_header = PECHeader(
             int.from_bytes(pec_header_b[512+2:512+5], "little"),
