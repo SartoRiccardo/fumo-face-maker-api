@@ -18,7 +18,7 @@ class PECHeader:
 
         second_section = (
             b"\x00\x00"
-            + self.thumbnail_offset.to_bytes(3, "little")
+            + (self.thumbnail_offset + 16).to_bytes(3, "little")
             + b"\x31\xff\xf0"
             + self.width.to_bytes(2, "little")
             + self.height.to_bytes(2, "little")

@@ -200,9 +200,29 @@ def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> 
             max_y = pos_y
 
     width, height = max_x-min_x, max_y-min_y
+    """
+    Without an initial JUMP command, the file is very off centered. Now, it can be
+    somewhat centered if you just move it to the right by width/2 and down height/2.
+    For the width (and the height too with the same principle) this works only if
+        min_x = -max_x
+    We are assuming min_x is always negative. Should they differ, the design will still
+    be truncated by the difference in their absolute values
+        truncated = max_x - |min_x|
+    To correct this, subtract half of this difference to the JUMP command. The total
+    amount we need to jump, therefore, becomes:
+        width/2 - (max_x - |min_x|)/2
+        =>  (width - (max_x + min_x)) / 2
+        =>  (max_x - min_x - max_x - min_x) / 2
+        =>  (-2min_x) / 2
+        =>  -min_x
+    """
+    stitch_data = PECCommand(
+        -min_x, -min_y,
+        PECOpCode.JUMP
+    ).to_bytes() + stitch_data
 
     header = PECHeader(
-        len(stitch_data) + 20,
+        len(stitch_data),
         [
             clr if isinstance(clr, int) else PEC_COLORS.get(clr, PEC_COLORS["black"])
             for clr in colors
@@ -212,7 +232,6 @@ def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> 
     )
 
     return header.to_bytes() + \
-        PECCommand(width // 2, height // 2, PECOpCode.JUMP).to_bytes() + \
         stitch_data + \
         pec_generate_thumbnail(len(colors))
 
