@@ -23,7 +23,10 @@ class PECHeader:
             + self.width.to_bytes(2, "little")
             + self.height.to_bytes(2, "little")
             + b"\xe0\x01\xb0\x01"
-            + b"\x90\x31\x90\x00"  # 4 unknown bytes
+            # The wiki says 4 unknown bytes below this.
+            # In reality, those don't exist. We go directly to
+            # the stitch data. I think they mistook initial JUMP
+            # commands as a header section.
         )
 
         return first_section + second_section

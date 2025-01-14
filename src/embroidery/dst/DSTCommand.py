@@ -53,3 +53,7 @@ class DSTCommand:
     @classmethod
     def color_change(cls) -> "DSTCommand":
         return DSTCommand(0, 0, op=DSTOpCode.COLOR_CHANGE)
+
+    @classmethod
+    def end(cls) -> "DSTCommand":
+        return DSTCommand(0, 0, op=DSTOpCode.COLOR_CHANGE, is_end=True)

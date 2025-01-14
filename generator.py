@@ -52,6 +52,9 @@ def optimize_jumps(embroidery: list[DSTCommand]) -> None:
                 jump = (0, 0)
             i += 1
 
+    while embroidery[-2].op == DSTOpCode.JUMP:
+        embroidery.pop(-2)
+
 
 def append_commands(
         append_to: list[DSTCommand],
@@ -113,10 +116,6 @@ def combine_parts(
 
     embroidery_final = []
     cur_needle_pos = (0, 0)
-
-    # Don't know why there's usually 2 empty JUMPs, but I'll put them out of fear.
-    embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
-    embroidery_final.append(DSTCommand(0, 0, DSTOpCode.JUMP))
 
     # Eyes
     with open(f"face-parts/eyes/eye-{eye_no[0]}/positions.json") as fin:
@@ -214,6 +213,11 @@ def combine_parts(
     # Cleanup
     optimize_jumps(embroidery_final)
 
+    # Don't know why there's usually 2-3 empty JUMPs, but I'll put them out of fear.
+    embroidery_final.insert(0, DSTCommand(0, 0, DSTOpCode.JUMP))
+    embroidery_final.insert(0, DSTCommand(0, 0, DSTOpCode.JUMP))
+    embroidery_final.insert(0, DSTCommand(0, 0, DSTOpCode.JUMP))
+
     if file_format == "DST":
         header = dst_generate_header(embroidery_final)
         return header.to_bytes() \
@@ -235,10 +239,10 @@ def combine_parts(
         # Special mouth color switches
         if mouth_no == 4:
             colors += ["white", "black"]
-        elif mouth_no == 5:
+        elif mouth_no == 6:
             colors += ["red", "black"]
         elif mouth_no == 11:
-            colors += ["white", "#fcbbc5", "black"]
+            colors += ["white", "salmon pink", "black"]
 
         color = 2
         for i, command in enumerate(embroidery_final):
@@ -246,6 +250,8 @@ def combine_parts(
             if embroidery_final[i].op == PECOpCode.COLOR_CHANGE:
                 embroidery_final[i].color = color
                 color = 1 if color == 2 else 2
+            elif embroidery_final[i].op == PECOpCode.JUMP:
+                embroidery_final[i].op = PECOpCode.TRIM
 
         return (
             pes_generate_header(embroidery_final).to_bytes()

@@ -183,8 +183,23 @@ def pes_generate_header(_e) -> PESv1Header:
 
 def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> bytes:
     stitch_data = b""
+    min_x = min_y = float("inf")
+    max_x = max_y = -float("inf")
+    pos_x = pos_y = 0
     for command in embroidery:
         stitch_data += command.to_bytes()
+        pos_x += command.x
+        pos_y += command.y
+        if pos_x < min_x:
+            min_x = pos_x
+        if pos_x > max_x:
+            max_x = pos_x
+        if pos_y < min_y:
+            min_y = pos_y
+        if pos_y > max_y:
+            max_y = pos_y
+
+    width, height = max_x-min_x, max_y-min_y
 
     header = PECHeader(
         len(stitch_data) + 20,
@@ -192,11 +207,14 @@ def pec_generate_data(embroidery: list[PECCommand], colors: list[str | int]) -> 
             clr if isinstance(clr, int) else PEC_COLORS.get(clr, PEC_COLORS["black"])
             for clr in colors
         ],
-        200,
-        200,
+        width,
+        height,
     )
 
-    return header.to_bytes() + stitch_data + pec_generate_thumbnail(len(colors))
+    return header.to_bytes() + \
+        PECCommand(width // 2, height // 2, PECOpCode.JUMP).to_bytes() + \
+        stitch_data + \
+        pec_generate_thumbnail(len(colors))
 
 
 def pec_generate_thumbnail(color_changes: int) -> bytes:
