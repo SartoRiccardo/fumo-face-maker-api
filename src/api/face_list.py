@@ -15,7 +15,7 @@ def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
         pos_x += c.x
         pos_y -= c.y
         if c.op == DSTOpCode.STITCH:
-            current.append(f"{pos_x/10:.1f},{pos_y/10:.1f}")
+            current.append(f"{pos_x},{pos_y}")
         elif len(current) and (
                 c.op == DSTOpCode.COLOR_CHANGE or
                 c.is_end or
