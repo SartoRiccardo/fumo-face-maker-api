@@ -10,7 +10,7 @@ The API to generate the Fumo face files. You can run it as a web server or as a 
    - To run it as a CLI tool, run `generator.py` as an executable on your terminal
 
 
-## Genaration
+## Generation
 To generate a face, it combines the DST files found in `face-parts`.
 First it combines the eyes, then the eyebrows and lastly the mouth.
 While the eyebrows and mouth are (almost) a simple copy and paste, the eye pasting has a bit more logic to it:
