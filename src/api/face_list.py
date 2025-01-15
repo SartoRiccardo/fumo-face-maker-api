@@ -3,9 +3,12 @@ import json
 from aiohttp import web
 from src.embroidery.dst import dst_load, DSTOpCode
 from generator import MOUTH_CENTER, EYEBROW_CENTER
+import aiofiles
+from datetime import datetime, timedelta
+from config import Cache
 
 
-def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
+async def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
     pos_x, pos_y = start_pos
     pos_y *= -1
     _, commands = dst_load(path)
@@ -28,10 +31,7 @@ def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
     return paths
 
 
-async def get(_r: web.Request) -> web.Response:
-    """
-    Right now returns polyline data but path seems shorter
-    """
+async def calc_svg_paths() -> dict:
     count = {
         "eyes": 0,
         "eyelashes": 0,
@@ -51,7 +51,7 @@ async def get(_r: web.Request) -> web.Response:
         count["mouths"] += 1
         svg_paths["mouths"].append({
             "id": int(fname[len("mouth-"):-len(".DST")]),
-            "paths": stitches_to_points(f"face-parts/mouths/{fname}", MOUTH_CENTER),
+            "paths": await stitches_to_points(f"face-parts/mouths/{fname}", MOUTH_CENTER),
         })
 
     for fname in os.listdir("face-parts/eyebrows"):
@@ -60,7 +60,7 @@ async def get(_r: web.Request) -> web.Response:
         count["eyebrows"] += 1
         svg_paths["eyebrows"].append({
             "id": int(fname[len("eyebrow-"):-len(".DST")]),
-            "paths": stitches_to_points(f"face-parts/eyebrows/{fname}", EYEBROW_CENTER),
+            "paths": await stitches_to_points(f"face-parts/eyebrows/{fname}", EYEBROW_CENTER),
         })
 
     for dname_eye in os.listdir("face-parts/eyes"):
@@ -75,14 +75,14 @@ async def get(_r: web.Request) -> web.Response:
             "left": {
                 "eyelashes": [],
                 "pupils": [],
-                "shine": stitches_to_points(f"face-parts/eyes/{dname_eye}/shine-l.DST", positions["shine-l"])[0],
-                "top": stitches_to_points(f"face-parts/eyes/{dname_eye}/top-l.DST", positions["top-l"])[0],
+                "shine": (await stitches_to_points(f"face-parts/eyes/{dname_eye}/shine-l.DST", positions["shine-l"]))[0],
+                "top": (await stitches_to_points(f"face-parts/eyes/{dname_eye}/top-l.DST", positions["top-l"]))[0],
             },
             "right": {
                 "eyelashes": [],
                 "pupils": [],
-                "shine": stitches_to_points(f"face-parts/eyes/{dname_eye}/shine-r.DST", positions["shine-r"])[0],
-                "top": stitches_to_points(f"face-parts/eyes/{dname_eye}/top-r.DST", positions["top-r"])[0],
+                "shine": (await stitches_to_points(f"face-parts/eyes/{dname_eye}/shine-r.DST", positions["shine-r"]))[0],
+                "top": (await stitches_to_points(f"face-parts/eyes/{dname_eye}/top-r.DST", positions["top-r"]))[0],
             },
         }
 
@@ -93,16 +93,16 @@ async def get(_r: web.Request) -> web.Response:
                 lash_id = int(fname[len("eyelash-"):-len("-r.DST")])
                 eye_svg_data["right"]["eyelashes"].append({
                     "id": lash_id,
-                    "paths": stitches_to_points(
+                    "paths": await stitches_to_points(
                         f"face-parts/eyes/{dname_eye}/outlines/{fname}",
-                        positions["outline-r"][lash_id-1],
+                        positions["outline-r"][lash_id - 1],
                     ),
                 })
                 eye_svg_data["left"]["eyelashes"].append({
                     "id": lash_id,
-                    "paths": stitches_to_points(
+                    "paths": await stitches_to_points(
                         f"face-parts/eyes/{dname_eye}/outlines/{fname.replace('-r', '-l')}",
-                        positions["outline-l"][lash_id-1],
+                        positions["outline-l"][lash_id - 1],
                     ),
                 })
 
@@ -113,24 +113,39 @@ async def get(_r: web.Request) -> web.Response:
                 fill_id = int(fname[len("fill-"):-len("-r.DST")])
                 eye_svg_data["right"]["pupils"].append({
                     "id": fill_id,
-                    "paths": stitches_to_points(
+                    "paths": await stitches_to_points(
                         f"face-parts/eyes/{dname_eye}/pupils/{fname}",
-                        positions["fill-r"][fill_id-1],
+                        positions["fill-r"][fill_id - 1],
                     ),
                 })
                 eye_svg_data["left"]["pupils"].append({
                     "id": fill_id,
-                    "paths": stitches_to_points(
+                    "paths": await stitches_to_points(
                         f"face-parts/eyes/{dname_eye}/pupils/{fname.replace('-r', '-l')}",
-                        positions["fill-l"][fill_id-1],
+                        positions["fill-l"][fill_id - 1],
                     ),
                 })
 
         svg_paths["eyes"].append(eye_svg_data)
 
-    parts = {
+    return {
         "count": count,
         "svg_paths": svg_paths
     }
+
+
+async def get(_r: web.Request) -> web.Response:
+    if not os.path.exists(Cache.cache_path):
+        os.makedirs(Cache.cache_path, exist_ok=True)
+
+    RESP_PATH = os.path.join(Cache.cache_path, "list.json")
+    if not os.path.exists(RESP_PATH) or \
+            datetime.fromtimestamp(os.stat(RESP_PATH).st_ctime) + timedelta(days=1) <= datetime.now():
+        parts = await calc_svg_paths()
+        async with aiofiles.open(RESP_PATH, "w") as fout:
+            await fout.write(json.dumps(parts))
+    else:
+        async with aiofiles.open(RESP_PATH) as fin:
+            parts = json.loads(await fin.read())
 
     return web.json_response(parts)
