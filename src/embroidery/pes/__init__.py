@@ -282,7 +282,6 @@ def pec_generate_thumbnail(embroidery: list[PECCommand], size: tuple[int, int]) 
         padding = (int((THMB_SIZE[0]*8 - THMB_PADDING*2 - size[0] // step) // 2), 0)
     else:
         step = size[0]/(THMB_SIZE[0]*8-THMB_PADDING*2)
-        print(THMB_SIZE[1] - THMB_PADDING*2, size[1])
         padding = (0, int((THMB_SIZE[1] - THMB_PADDING*2 - size[1] // step) // 2))
 
     thumbnail = EMPTY_THUMBNAIL

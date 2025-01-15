@@ -4,6 +4,8 @@ from src.embroidery.dst import dst_load, dst_generate_header, DSTCommand, DSTOpC
 from src.embroidery.pes import pes_generate_header, PECCommand, PECOpCode, pec_generate_data
 from src.embroidery.utils import sign
 from typing import Literal
+import asyncio
+import argparse
 # 1 unit = 0.1mm
 
 
@@ -88,7 +90,7 @@ def append_commands(
     return current_position
 
 
-def combine_parts(
+async def combine_parts(
         eye_no: int | tuple[int, int],
         lash_no: int,
         brow_no: int,
@@ -122,8 +124,8 @@ def combine_parts(
         else:
             outcols = ["black"]
 
-    browh, browe = dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
-    mouthh, mouthe = dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
+    browh, browe = await dst_load(f"face-parts/eyebrows/eyebrow-{brow_no}.DST")
+    mouthh, mouthe = await dst_load(f"face-parts/mouths/mouth-{mouth_no}.DST")
 
     embroidery_final = []
     cur_needle_pos = (0, 0)
@@ -137,8 +139,8 @@ def combine_parts(
         with open(f"face-parts/eyes/eye-{eye_no[1]}/positions.json") as fin:
             pos_info_1 = json.load(fin)
 
-    _, fill_l = dst_load(f"face-parts/eyes/eye-{eye_no[0]}/pupils/fill-{fill_no}-l.DST")
-    _, fill_r = dst_load(f"face-parts/eyes/eye-{eye_no[1]}/pupils/fill-{fill_no}-r.DST")
+    _, fill_l = await dst_load(f"face-parts/eyes/eye-{eye_no[0]}/pupils/fill-{fill_no}-l.DST")
+    _, fill_r = await dst_load(f"face-parts/eyes/eye-{eye_no[1]}/pupils/fill-{fill_no}-r.DST")
     fills = [fill_l, fill_r]
     fills_idx = [0, 0]
     fills_pos = [pos_info_0["fill-l"][fill_no-1], pos_info_1["fill-r"][fill_no-1]]
@@ -193,7 +195,7 @@ def combine_parts(
     ]
 
     for emb_path, abs_pos, color_change in eye_data:
-        _, part = dst_load(emb_path)
+        _, part = await dst_load(emb_path)
         cur_needle_pos = append_commands(
             embroidery_final,
             jump_to(cur_needle_pos, abs_pos),
@@ -271,9 +273,7 @@ def combine_parts(
         )
 
 
-if __name__ == '__main__':
-    import argparse
-
+async def main():
     parser = argparse.ArgumentParser(
         prog="generator.py",
         description="Generate Fumo faces via CLI.",
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
     format = args.format.upper() if args.format else "DST"
     eye_no = args.eye_no if args.eye2 is None else (args.eye_no, args.eye2)
-    data = combine_parts(
+    data = await combine_parts(
         eye_no,
         args.lash_no,
         args.brow_no,
@@ -314,3 +314,7 @@ if __name__ == '__main__':
     fname = args.file if args.file else f"generated.{format}"
     with open(fname, "wb") as fout:
         fout.write(data)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

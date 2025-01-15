@@ -11,7 +11,7 @@ from config import Cache
 async def stitches_to_points(path: str, start_pos: tuple[int, int]) -> list[str]:
     pos_x, pos_y = start_pos
     pos_y *= -1
-    _, commands = dst_load(path)
+    _, commands = await dst_load(path)
     paths = []
     current = None
     for i, c in enumerate(commands):

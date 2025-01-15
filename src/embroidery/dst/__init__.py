@@ -2,12 +2,13 @@
 from .DSTHeader import DSTHeader
 from .DSTCommand import DSTCommand
 from .DSTOpCode import DSTOpCode
+import aiofiles
 
 
-def dst_load(fname: str) -> tuple[DSTHeader, list[DSTCommand]]:
-    with open(fname, "rb") as fin:
-        header_raw = fin.read(512)
-        embroidery_raw = fin.read()
+async def dst_load(fname: str) -> tuple[DSTHeader, list[DSTCommand]]:
+    async with aiofiles.open(fname, "rb") as fin:
+        header_raw = await fin.read(512)
+        embroidery_raw = await fin.read()
 
     header = DSTHeader(
         header_raw[3:19].decode(),
@@ -20,7 +21,7 @@ def dst_load(fname: str) -> tuple[DSTHeader, list[DSTCommand]]:
         header_raw[117:123].decode(),
     )
 
-    embroidery = [DSTCommand(embroidery_raw[i: i +3]) for i in range(0, len(embroidery_raw), 3)]
+    embroidery = [DSTCommand(embroidery_raw[i: i+3]) for i in range(0, len(embroidery_raw), 3)]
 
     return header, embroidery
 

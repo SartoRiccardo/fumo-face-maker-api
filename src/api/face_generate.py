@@ -30,7 +30,7 @@ async def get(request: web.Request) -> web.Response:
     filename += f".{file_format}"
 
     try:
-        face = generator.combine_parts(
+        face = await generator.combine_parts(
             (eye_no, eye2_no),
             lash_no,
             brow_no,
@@ -41,7 +41,7 @@ async def get(request: web.Request) -> web.Response:
             outcols=outcols,
             file_format=file_format,
             fill_no=fill_no,
-        )  # TODO dont block
+        )
     except FileNotFoundError as fnferr:
         return web.Response(status=400, text=f"Part not found: {fnferr.filename}")
 
