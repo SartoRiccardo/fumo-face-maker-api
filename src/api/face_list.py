@@ -88,7 +88,7 @@ async def calc_svg_paths() -> dict:
 
         for fname in os.listdir(f"face-parts/eyes/{dname_eye}/outlines"):
             if dname_eye == "eye-1" and fname.startswith("eyelash-") and fname.endswith("-r.DST"):
-                count["fills"] += 1
+                count["eyelashes"] += 1
             if fname.endswith("-r.DST"):
                 lash_id = int(fname[len("eyelash-"):-len("-r.DST")])
                 eye_svg_data["right"]["eyelashes"].append({
