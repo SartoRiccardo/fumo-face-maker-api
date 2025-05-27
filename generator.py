@@ -214,7 +214,7 @@ async def combine_parts(
     )
 
     # Mouth
-    if mouth_no in [6, 11, 4]:  # Special mouths that don't start with black thread
+    if mouth_no in [6, 11, 4, 25, 26]:  # Special mouths that don't start with black thread
         embroidery_final.append(DSTCommand.color_change())
     cur_needle_pos = append_commands(
         embroidery_final,
@@ -257,6 +257,10 @@ async def combine_parts(
             colors += ["red", "black"]
         elif mouth_no == 11:
             colors += ["white", "salmon pink", "black"]
+        elif mouth_no == 26:
+            colors += ["salmon pink", "white", "black"]
+        elif mouth_no == 25:
+            colors += ["salmon pink", "black"]
 
         color = 2
         for i, command in enumerate(embroidery_final):
